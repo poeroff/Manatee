@@ -1,0 +1,10 @@
+# Large model files
+*.pt
+*.pth
+*.bin
+*.ckpt
+
+# Large data files
+Manatee/GSE72857/perturb/perturb_generate_x_rec_data.csv.gz
+Manatee/GSE72857/perturb/perturb_generate_x_rec_data.csv/
+Manatee/output/GSE72857_x_rec.csv.gz
