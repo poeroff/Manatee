@@ -11,6 +11,8 @@ from vae import VAE
 from langchain_ollama import ChatOllama
 from langchain.tools import tool
 from langchain.agents import create_agent
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
 
 # ── VAE 모델 로드 ──────────────────────────────────────────
 genes = open('Manatee/GSE72857/processed/genes.txt').read().splitlines()
@@ -204,7 +206,7 @@ def perturb_tf(cell_name: str, tf_name: str, new_value: float) -> str:
 
 
 # ── LLM 로드 ──────────────────────────────────────────────
-chat_model = ChatOllama(model="qwen3:8b", temperature=0)
+chat_model = ChatOllama(model="qwen3:8b", temperature=0, think=False, num_ctx=8192)
 
 
 # ── 에이전트 설정 ──────────────────────────────────────────
@@ -228,13 +230,33 @@ agent = create_agent(
     system_prompt=SYSTEM_PROMPT,
 )
 
+# ── 대화 히스토리 저장소 ───────────────────────────────────
+_session_store: dict[str, ChatMessageHistory] = {}
 
-def run_agent(query: str) -> str:
-    result = agent.invoke(
+def _get_session_history(session_id: str) -> ChatMessageHistory:
+    if session_id not in _session_store:
+        _session_store[session_id] = ChatMessageHistory()
+    return _session_store[session_id]
+
+agent_with_history = RunnableWithMessageHistory(
+    agent,
+    _get_session_history,
+    input_messages_key="messages",
+)
+
+
+def run_agent(query: str, session_id: str = "default") -> str:
+    result = agent_with_history.invoke(
         {"messages": [{"role": "user", "content": query}]},
-        config={"recursion_limit": 10},
+        config={"configurable": {"session_id": session_id}, "recursion_limit": 10},
     )
     return result["messages"][-1].content
+
+
+def clear_history(session_id: str = "default"):
+    """대화 히스토리 초기화"""
+    if session_id in _session_store:
+        _session_store[session_id].clear()
 
 
 # ── 메인 루프 ──────────────────────────────────────────────

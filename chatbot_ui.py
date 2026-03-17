@@ -16,7 +16,8 @@ spec = importlib.util.spec_from_file_location(
 )
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
-run_agent = mod.run_agent
+run_agent     = mod.run_agent
+clear_history = mod.clear_history
 
 
 # ── 백그라운드 워커 ────────────────────────────────────────
@@ -85,11 +86,35 @@ class ChatWindow(QMainWindow):
         layout.setSpacing(0)
 
         # 타이틀바
+        title_bar = QWidget()
+        title_bar.setStyleSheet("background-color: #181825;")
+        title_row = QHBoxLayout(title_bar)
+        title_row.setContentsMargins(12, 8, 12, 8)
+
         title = QLabel("🧬 Manatee Agent")
         title.setAlignment(Qt.AlignCenter)
         title.setFont(QFont("Malgun Gothic", 13, QFont.Bold))
-        title.setStyleSheet("color: #cdd6f4; background-color: #181825; padding: 12px;")
-        layout.addWidget(title)
+        title.setStyleSheet("color: #cdd6f4;")
+
+        self.clear_btn = QPushButton("대화 초기화")
+        self.clear_btn.setFont(QFont("Malgun Gothic", 9))
+        self.clear_btn.setFixedWidth(90)
+        self.clear_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #45475a;
+                color: #cdd6f4;
+                border-radius: 6px;
+                padding: 5px;
+            }
+            QPushButton:hover { background-color: #585b70; }
+        """)
+        self.clear_btn.clicked.connect(self._clear_chat)
+
+        title_row.addStretch()
+        title_row.addWidget(title)
+        title_row.addStretch()
+        title_row.addWidget(self.clear_btn)
+        layout.addWidget(title_bar)
 
         # 스크롤 영역
         self.scroll = QScrollArea()
@@ -207,6 +232,15 @@ class ChatWindow(QMainWindow):
             if row_widget:
                 row_widget.deleteLater()
             self.loading_bubble = None
+
+    def _clear_chat(self):
+        clear_history()
+        # 화면의 메시지 버블 전체 제거
+        layout = self.msg_container.layout()
+        while layout.count() > 1:  # 마지막 stretch는 유지
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
 
     def _set_input_enabled(self, enabled: bool):
         self.input_box.setEnabled(enabled)
